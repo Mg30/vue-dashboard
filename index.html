@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui">
+</head>
+
+<body>
+
+    <div id="app">
+        <!-- Vue app-->
+
+        <v-app>
+
+            <v-content>
+                <v-app-bar dense app color="blue-grey lighten-5" clipped-left>
+                    <v-app-bar-nav-icon></v-app-bar-nav-icon>
+                    <v-toolbar-title class="headline text-uppercase">
+                        <span>Sales</span>
+                        <span class="font-weight-light">Dashboard</span>
+                    </v-toolbar-title>
+                    <v-spacer></v-spacer>
+                    <v-btn icon @click="getData">
+                        <v-icon>mdi-refresh</v-icon>
+                    </v-btn>
+                </v-app-bar>
+                <v-container fluid v-if="!loading">
+                    <v-row>
+                        <v-chip v-for="(value,index) in dataFilter" :key="index" close @click:close="unFilter(value)">
+                            {{value}}
+
+                        </v-chip>
+                    </v-row>
+                    <v-row>
+                        <v-col>
+                            <vc-chart :data="ordersByLocation.data" :type="ordersByLocation.type"
+                                :hierarchy="ordersByLocation.hierarchy" :metrics="ordersByLocation.metrics"
+                                :title="ordersByLocation.title" @clicked="filter">
+                            </vc-chart>
+
+                        </v-col>
+                        <v-col>
+                            <vc-chart :data="ordersByProduct.data" :type="ordersByProduct.type"
+                                :hierarchy="ordersByProduct.hierarchy" :metrics="ordersByProduct.metrics"
+                                :title="ordersByProduct.title" @clicked="filter">
+                            </vc-chart>
+
+                        </v-col>
+
+                    </v-row>
+                    <v-row>
+                        <v-col>
+
+                            <vc-chart :data="ordersByDate.data" :type="ordersByDate.type"
+                                :hierarchy="ordersByDate.hierarchy" :metrics="ordersByDate.metrics"
+                                :title="ordersByDate.title" @clicked="filter">
+                            </vc-chart>
+
+                        </v-col>
+
+                    </v-row>
+                </v-container>
+                <v-container fluid v-else>
+                    <v-row>
+                        <v-col>
+                            <v-skeleton-loader type="card" height="500"></v-skeleton-loader>
+
+                        </v-col>
+                        <v-col>
+                            <v-skeleton-loader type="card" height="500"></v-skeleton-loader>
+
+                        </v-col>
+
+                    </v-row>
+                    <v-row>
+                        <v-col>
+
+                            <v-skeleton-loader class="mx-auto" type="card"></v-skeleton-loader>
+
+                        </v-col>
+
+                    </v-row>
+                </v-container>
+            </v-content>
+
+        </v-app>
+
+    </div>
+
+
+
+    <!-- loading dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@4.8.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@2.2.6/dist/vuetify.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/v-charts@1.19.0/lib/index.min.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/v-charts/lib/style.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios@0.20.0-0/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.20/lodash.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs@1.9.22/dist/interact.min.js"></script>
+    <script src="gsheet.js"></script>
+    <script src="./chart.vue.js"></script>
+    <script>
+        const app = new Vue({
+            el: '#app',
+            vuetify: new Vuetify(),
+            components: {
+                'vc-chart': chart,
+            },
+            mounted() {
+                this.ghseetClient = new Gsheet(
+                    '1yvSP9scDkbLDhBGMEKo8S-8hW73TZe01MWkyorbtCSQ',
+                    'AIzaSyDGhDOAeehDMTDmHMc1waP_T0GV8aoG3NM')
+                this.getData()
+            },
+            data() {
+                return {
+                    icons: [
+                        'mdi-linkedin'
+                    ],
+                    loading: false,
+                    ghseetClient: null,
+                    dataFilter: [],
+                    sheetData: {
+                        orders: ''
+                    },
+                    chartEvent: {
+                        click: (e) => {
+                            const name = isNaN(+e.name) ? e.name : +e.name
+
+                            if (!this.dataFilter.includes(e.name)) {
+
+                                this.dataFilter = [
+                                    ...this.dataFilter,
+                                    name
+                                ]
+
+                            }
+
+                        }
+                    }
+                }
+            },
+            methods: {
+                unFilter(event) {
+                    this.dataFilter = _.without(this.dataFilter, event)
+                },
+                filter(event) {
+                    const name = isNaN(+event) ? event : +event
+
+                    if (!this.dataFilter.includes(event)) {
+
+                        this.dataFilter = [
+                            ...this.dataFilter,
+                            name
+                        ]
+
+                    }
+
+                },
+                async getData() {
+                    this.loading = true
+                    this.sheetData = await this.ghseetClient.fetch()
+                    this.loading = false
+                }
+            },
+            computed: {
+                ordersByDate() {
+                    let data = this.sheetData['orders']
+                    if (!_.isEmpty(this.dataFilter)) {
+                        for (const filter of this.dataFilter) {
+                            data = data.filter(row => _.includes(row, filter))
+                        }
+
+                    }
+                    const hierarchy = ['year', 'month', 'orderdate']
+                    const metrics = ['turnover', 'quantity']
+
+                    return {
+                        data,
+                        hierarchy,
+                        metrics,
+                        type: 'line',
+                        title: 'Sales per Date'
+                    }
+
+                },
+                ordersByProduct() {
+                    let data = this.sheetData['orders']
+                    if (!_.isEmpty(this.dataFilter)) {
+                        for (const filter of this.dataFilter) {
+                            data = data.filter(row => _.includes(row, filter))
+                        }
+
+                    }
+                    const hierarchy = ['categoryname', 'productname']
+                    const metrics = ['turnover', 'quantity']
+
+                    return {
+                        data,
+                        hierarchy,
+                        metrics,
+                        type: 'bar',
+                        title: 'Sales per product'
+                    }
+
+                },
+                ordersByLocation() {
+                    let data = this.sheetData['orders']
+                    if (!_.isEmpty(this.dataFilter)) {
+                        for (const filter of this.dataFilter) {
+                            data = data.filter(row => _.includes(row, filter))
+                        }
+
+                    }
+                    const hierarchy = ['country', 'city']
+                    const metrics = ['turnover']
+                    return {
+                        data,
+                        hierarchy,
+                        metrics,
+                        type: 'pie',
+                        title: 'Sales per Location'
+                    }
+
+                }
+            }
+        })
+    </script>
+</body>
+
+</html>
